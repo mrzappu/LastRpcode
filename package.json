@@ -1,0 +1,27 @@
+{
+  "name": "RedemptionBot",
+  "version": "1.0.0",
+  "description": "A Discord bot with /say, welcome and goodbye embeds (custom channels), moderation (kick/ban), moveuser command, and dynamic member count status.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "welcome",
+    "goodbye",
+    "say",
+    "kick",
+    "ban",
+    "moveuser",
+    "status"
+  ],
+  "author": "Rick",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
