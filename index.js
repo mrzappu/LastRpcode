@@ -25,6 +25,7 @@ const PORT = 3000;
 // ===== In-memory channel settings =====
 let welcomeChannelId = null;
 let goodbyeChannelId = null;
+let voiceLogChannelId = null;
 
 // ===== Commands =====
 const sayCommand = new SlashCommandBuilder()
@@ -49,6 +50,15 @@ const setGoodbyeCommand = new SlashCommandBuilder()
   .addChannelOption(opt =>
     opt.setName('channel')
       .setDescription('The channel to send goodbye messages')
+      .setRequired(true)
+  );
+
+const setVoiceLogCommand = new SlashCommandBuilder()
+  .setName('setvoicelog')
+  .setDescription('Set the channel for voice logs')
+  .addChannelOption(opt =>
+    opt.setName('channel')
+      .setDescription('The channel to log voice joins/leaves/moves')
       .setRequired(true)
   );
 
@@ -84,6 +94,7 @@ client.once('ready', async () => {
         sayCommand,
         setWelcomeCommand,
         setGoodbyeCommand,
+        setVoiceLogCommand,
         kickCommand,
         banCommand,
         moveUserCommand
@@ -100,8 +111,7 @@ client.once('ready', async () => {
 
 // ===== Dynamic Bot Status =====
 function updateStatus() {
-  // count only the first guild (your REDEMPTION server)
-  const guild = client.guilds.cache.first();
+  const guild = client.guilds.cache.first(); // your REDEMPTION server
   if (!guild) return;
   const totalMembers = guild.memberCount;
   client.user.setPresence({
@@ -128,6 +138,12 @@ client.on(Events.InteractionCreate, async interaction => {
     const channel = interaction.options.getChannel('channel');
     goodbyeChannelId = channel.id;
     await interaction.reply(`✅ Goodbye messages will now be sent in ${channel}`);
+  }
+
+  if (interaction.commandName === 'setvoicelog') {
+    const channel = interaction.options.getChannel('channel');
+    voiceLogChannelId = channel.id;
+    await interaction.reply(`✅ Voice logs will now be sent in ${channel}`);
   }
 
   if (interaction.commandName === 'kick') {
@@ -180,11 +196,18 @@ client.on(Events.GuildMemberAdd, member => {
   if (channel) {
     const embed = new EmbedBuilder()
       .setColor(0x57F287)
-      .setTitle('👋 Welcome To REDEMPTION')
-      .setDescription('📜 Make Sure To Read RP Rules\n📢 Check Out Server Updates')
+      .setTitle(`👋 Hey ${member.user.username}, welcome to **REDEMPTION ROLEPLAY** 🚗🔥`)
+      .setDescription(
+        "━━━━▣━━◤◢━━▣━━━━━\n" +
+        "📌 Make Sure To Read RP Rules 📌\n" +
+        "📌 Check Out Server Updates 📌\n" +
+        "━━━━▣━━◤◢━━▣━━━━━\n\n" +
+        "🛬 Enjoy your RP journey with us! 🚀✨"
+      )
       .setThumbnail(member.guild.iconURL({ dynamic: true }))
-      .setFooter({ text: member.guild.name, iconURL: member.guild.iconURL({ dynamic: true }) })
+      .setFooter({ text: "REDEMPTION RP • Roleplay Without Limits 🌍" })
       .setTimestamp();
+
     channel.send({ content: `Welcome ${member.user}!`, embeds: [embed] });
   }
 });
@@ -198,12 +221,66 @@ client.on(Events.GuildMemberRemove, member => {
   if (channel) {
     const embed = new EmbedBuilder()
       .setColor(0xED4245)
-      .setTitle('👋 Goodbye From REDEMPTION')
-      .setDescription(`😢 ${member.user.tag} has left the server.\nWe hope to see you again!`)
+      .setTitle(`💔 ${member.user.tag} just left **REDEMPTION RP**...`)
+      .setDescription(
+        "━━━━▣━━◤◢━━▣━━━━━\n" +
+        "We’ll miss your RP vibes ✈️\n" +
+        "Hope to see you back soon! 🚀\n" +
+        "━━━━▣━━◤◢━━▣━━━━━"
+      )
       .setThumbnail(member.guild.iconURL({ dynamic: true }))
-      .setFooter({ text: member.guild.name, iconURL: member.guild.iconURL({ dynamic: true }) })
+      .setFooter({ text: "REDEMPTION RP • Until We Meet Again 🌌" })
       .setTimestamp();
+
     channel.send({ embeds: [embed] });
+  }
+});
+
+// ===== Voice logs =====
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+  if (!voiceLogChannelId) return;
+  const logChannel = newState.guild.channels.cache.get(voiceLogChannelId);
+  if (!logChannel) return;
+
+  // Member joined a VC
+  if (!oldState.channelId && newState.channelId) {
+    const embed = new EmbedBuilder()
+      .setColor(0x57F287)
+      .setDescription(`✅ **${newState.member.user.tag}** joined **${newState.channel.name}**`)
+      .setTimestamp();
+    logChannel.send({ embeds: [embed] });
+
+    // DM user
+    try {
+      await newState.member.send(`🎧 You just joined VC: **${newState.channel.name}**`);
+    } catch {
+      console.log(`❌ Could not DM ${newState.member.user.tag}`);
+    }
+  }
+
+  // Member left a VC
+  else if (oldState.channelId && !newState.channelId) {
+    const embed = new EmbedBuilder()
+      .setColor(0xED4245)
+      .setDescription(`❌ **${oldState.member.user.tag}** left **${oldState.channel.name}**`)
+      .setTimestamp();
+    logChannel.send({ embeds: [embed] });
+  }
+
+  // Member moved VC
+  else if (oldState.channelId !== newState.channelId) {
+    const embed = new EmbedBuilder()
+      .setColor(0xFEE75C)
+      .setDescription(`🔄 **${newState.member.user.tag}** moved from **${oldState.channel.name}** ➝ **${newState.channel.name}**`)
+      .setTimestamp();
+    logChannel.send({ embeds: [embed] });
+
+    // DM user
+    try {
+      await newState.member.send(`🔄 You moved to VC: **${newState.channel.name}**`);
+    } catch {
+      console.log(`❌ Could not DM ${newState.member.user.tag}`);
+    }
   }
 });
 
